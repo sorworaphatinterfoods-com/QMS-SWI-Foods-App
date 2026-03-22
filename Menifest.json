@@ -1,0 +1,15 @@
+{
+  "name": "SMART QA FACTORY Audit",
+  "short_name": "QA Audit",
+  "start_url": "./audit_app.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#28a745",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1055/1055644.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
