@@ -2,12 +2,20 @@
   "name": "SMART QA FACTORY Audit",
   "short_name": "QA Audit",
   "start_url": "./audit_app.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#28a745",
+  "description": "Audit Management App สำหรับโรงงานอาหาร - SMART QA FACTORY",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/1055/1055644.png",
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
