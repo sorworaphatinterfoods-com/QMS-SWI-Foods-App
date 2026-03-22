@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#28a745">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    
+    <title>SMART QA FACTORY - Audit App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar { background-color: #28a745; }
+        .card { box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: none; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-dark mb-4">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1">🛡️ SMART QA FACTORY - Audit App</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        📝 บันทึกผลการตรวจ
+                    </div>
+                    <div class="card-body">
+                        <form id="auditForm">
+                            <div class="mb-3">
+                                <label class="form-label">กระบวนการ (Process)</label>
+                                <select class="form-select" id="processSelect" onchange="updateParameters()" required>
+                                    <option value="">-- เลือกกระบวนการ --</option>
+                                    <option value="PC0001 - รับวัตถุดิบ">PC0001 - รับวัตถุดิบ</option>
+                                    <option value="PC0009 - นวดผสม">PC0009 - นวดผสม</option>
+                                    <option value="PC0011 - บ่ม / หมัก">PC0011 - บ่ม / หมัก</option>
+                                    <option value="PC0015 - ซีลปิดปากถุง">PC0015 - ซีลปิดปากถุง</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">จุดตรวจวัด (Parameter)</label>
+                                <select class="form-select" id="parameterSelect" required disabled>
+                                    <option value="">-- กรุณาเลือกกระบวนการก่อน --</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">ผลการตรวจ (Result Value)</label>
+                                <input type="text" class="form-control" id="resultValue" placeholder="ระบุค่าที่วัดได้" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">ผู้ตรวจสอบ (Auditor)</label>
+                                <input type="text" class="form-control" id="auditorName" placeholder="ชื่อพนักงาน" required>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">บันทึกข้อมูล (Save)</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                        <span>📊 ข้อมูลการตรวจล่าสุด</span>
+                        <div>
+                            <button class="btn btn-sm btn-info me-2 text-white" onclick="exportToCSV()">📥 Export Excel</button>
+                            <button class="btn btn-sm btn-danger" onclick="clearData()">ล้างข้อมูล</button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>เวลา</th>
+                                        <th>กระบวนการ</th>
+                                        <th>จุดตรวจวัด</th>
+                                        <th>ผลการตรวจ</th>
+                                        <th>ผู้ตรวจสอบ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recordTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. ลงทะเบียน Service Worker เพื่อให้เป็นแอป PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+            .then(() => console.log('Service Worker Registered'));
+        }
+
+        // 2. ข้อมูลความสัมพันธ์ระหว่าง Process และ Parameter
+        const parameterMap = {
+            "PC0001 - รับวัตถุดิบ": [
+                { id: "TEMP_01 - RM Core Temperature", name: "อุณหภูมิแกนกลางวัตถุดิบ" },
+                { id: "CHEM_01 - Raw Meat pH", name: "ค่า pH วัตถุดิบรับเข้า" },
+                { id: "PHY_06 - Foreign Matter", name: "สิ่งแปลกปลอม/สี/กลิ่น" }
+            ],
+            "PC0009 - นวดผสม": [
+                { id: "TEMP_05 - Tumbler Mix Temperature", name: "อุณหภูมิหลังนวดผสม" },
+                { id: "MAC_01 - Tumbler Vacuum Level", name: "ระดับสุญญากาศเครื่องนวด" },
+                { id: "MAC_02 - Tumbler RPM", name: "ความเร็วรอบเครื่องนวด" },
+                { id: "MAC_03 - Mixing Time", name: "ระยะเวลานวดผสม" }
+            ],
+            "PC0011 - บ่ม / หมัก": [
+                { id: "TEMP_06 - Fermentation Temperature", name: "อุณหภูมิห้องบ่ม/หมัก" },
+                { id: "MAC_04 - Fermentation Time", name: "ระยะเวลาบ่ม/หมัก" },
+                { id: "CHEM_02 - Fermented pH", name: "ค่า pH หลังหมัก" }
+            ],
+            "PC0015 - ซีลปิดปากถุง": [
+                { id: "PHY_05 - Seal Integrity", name: "ความสมบูรณ์ของรอยซีล" },
+                { id: "MAC_05 - Packaging Vacuum Level", name: "ระดับสุญญากาศซีลถุง" }
+            ]
+        };
+
+        // 3. ฟังก์ชันอัปเดต Dropdown Parameter อัตโนมัติ
+        function updateParameters() {
+            const process = document.getElementById('processSelect').value;
+            const paramSelect = document.getElementById('parameterSelect');
+            
+            paramSelect.innerHTML = '<option value="">-- เลือกจุดตรวจวัด --</option>';
+            
+            if (process && parameterMap[process]) {
+                paramSelect.disabled = false;
+                parameterMap[process].forEach(param => {
+                    paramSelect.innerHTML += `<option value="${param.id}">${param.id} (${param.name})</option>`;
+                });
+            } else {
+                paramSelect.disabled = true;
+                paramSelect.innerHTML = '<option value="">-- กรุณาเลือกกระบวนการก่อน --</option>';
+            }
+        }
+
+        // --- ส่วนที่เหลือคือโค้ดบันทึกและ Export เดิม ---
+        document.addEventListener('DOMContentLoaded', loadRecords);
+
+        document.getElementById('auditForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const record = {
+                time: new Date().toLocaleString('th-TH'),
+                process: document.getElementById('processSelect').value,
+                parameter: document.getElementById('parameterSelect').value,
+                result: document.getElementById('resultValue').value,
+                auditor: document.getElementById('auditorName').value
+            };
+            let records = JSON.parse(localStorage.getItem('auditRecords')) || [];
+            records.unshift(record);
+            localStorage.setItem('auditRecords', JSON.stringify(records));
+            document.getElementById('auditForm').reset();
+            updateParameters(); // Reset dropdown
+            loadRecords();
+        });
+
+        function loadRecords() {
+            const records = JSON.parse(localStorage.getItem('auditRecords')) || [];
+            const tbody = document.getElementById('recordTableBody');
+            tbody.innerHTML = records.length ? '' : '<tr><td colspan="5" class="text-center text-muted">ยังไม่มีข้อมูล</td></tr>';
+            records.forEach(r => {
+                tbody.innerHTML += `<tr><td>${r.time}</td><td>${r.process}</td><td>${r.parameter}</td><td><strong>${r.result}</strong></td><td>${r.auditor}</td></tr>`;
+            });
+        }
+
+        function clearData() {
+            if(confirm("ล้างข้อมูลทั้งหมด?")) { localStorage.removeItem('auditRecords'); loadRecords(); }
+        }
+
+        function exportToCSV() {
+            const records = JSON.parse(localStorage.getItem('auditRecords')) || [];
+            if (!records.length) return alert("ไม่มีข้อมูล");
+            let csv = "\uFEFFเวลา,กระบวนการ,จุดตรวจวัด,ผลการตรวจ,ผู้ตรวจสอบ\n";
+            records.forEach(r => csv += `"${r.time}","${r.process}","${r.parameter}","${r.result}","${r.auditor}"\n`);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `Audit_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+    </script>
+</body>
+</html>
